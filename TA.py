@@ -41,7 +41,7 @@ def simulate_portfolio(data, initial_cash=10000):
 
     # Calculate the final portfolio value
     final_value = cash + (shares * data.iloc[-1]['Close'])
-    return portfolio_history, final_value
+    print ("PV: ", portfolio_history, final_value)
 
 # Assuming the above functions are correctly defined
 # msft_data = fetch_data_and_calculate_smas(2014)
