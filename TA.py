@@ -2,54 +2,52 @@ import pandas as pd
 import pandas_datareader.data as web
 from datetime import datetime, timedelta
 
-# Function to simulate trades and calculate portfolio value
-def simulate_trades(data):
-    initial_cash = 10000
-    cash = initial_cash
-    shares = 0
-    portfolio_value = initial_cash
-    trades = []
+# Function to fetch data and calculate SMAs
+def fetch_data_and_calculate_smas(start_year):
+    start_date = datetime(start_year, 1, 1)
+    end_date = datetime.now() - timedelta(days=1)  # Yesterday's date
+
+    # Fetch the Microsoft stock data
+    msft_data = web.DataReader('MSFT', 'yahoo', start_date, end_date)
+
+    # Calculate the 50-day and 200-day SMAs
+    msft_data['50_day_SMA'] = msft_data['Close'].rolling(window=50).mean()
+    msft_data['200_day_SMA'] = msft_data['Close'].rolling(window=200).mean()
+
+    return msft_data
+
+# Function to identify golden and death crosses
+def identify_crosses(data):
+    data['Golden_Cross'] = (data['50_day_SMA'] > data['200_day_SMA']) & (data['50_day_SMA'].shift(1) <= data['200_day_SMA'].shift(1))
+    data['Death_Cross'] = (data['50_day_SMA'] < data['200_day_SMA']) & (data['50_day_SMA'].shift(1) >= data['200_day_SMA'].shift(1))
+    return data
+
+# Function to simulate the portfolio
+def simulate_portfolio(data, initial_cash=10000):
+    cash = initial_cash - data.iloc[0]['Close']  # Initial purchase of 1 MSFT share
+    shares = 1  # Start with one share
+    portfolio_history = []
 
     for date, row in data.iterrows():
         if row['Golden_Cross'] and cash >= row['Close']:
-            # Buy 1 share
-            shares += 1
+            shares += 1  # Buy 1 share
             cash -= row['Close']
-            trades.append({'Date': date, 'Type': 'Buy', 'Price': row['Close']})
-        elif row['Death_Cross'] and shares > 0:
-            # Sell 1 share
-            shares -= 1
+            portfolio_history.append({'Date': date, 'Action': 'Buy', 'Share Price': row['Close'], 'Shares': shares, 'Cash': cash})
+
+        if row['Death_Cross'] and shares > 0:
+            shares -= 1  # Sell 1 share
             cash += row['Close']
-            trades.append({'Date': date, 'Type': 'Sell', 'Price': row['Close']})
-        
-        # Update portfolio value
-        portfolio_value = cash + (shares * row['Close'])
-    
-    return trades, portfolio_value
+            portfolio_history.append({'Date': date, 'Action': 'Sell', 'Share Price': row['Close'], 'Shares': shares, 'Cash': cash})
 
-# Function to print trades and calculate profit/loss
-def print_trades_and_summary(trades, final_portfolio_value):
-    annual_profit_loss = {}
-    for trade in trades:
-        year = trade['Date'].year
-        if trade['Type'] == 'Sell':
-            profit_loss = trade['Price'] - trades[trades.index(trade) - 1]['Price']
-            annual_profit_loss.setdefault(year, 0)
-            annual_profit_loss[year] += profit_loss
-            print(f"{trade['Date'].date()} - {trade['Type']} at {trade['Price']:.2f}, Profit/Loss: {profit_loss:.2f}")
-        else:
-            print(f"{trade['Date'].date()} - {trade['Type']} at {trade['Price']:.2f}")
+    # Calculate the final portfolio value
+    final_value = cash + (shares * data.iloc[-1]['Close'])
+    return portfolio_history, final_value
 
-    print("\nAnnual Profit/Loss:")
-    for year, pnl in annual_profit_loss.items():
-        print(f"{year}: {pnl:.2f}")
+# Assuming the above functions are correctly defined
+# msft_data = fetch_data_and_calculate_smas(2014)
+# msft_data_with_crosses = identify_crosses(msft_data)
+# portfolio_history, final_portfolio_value = simulate_portfolio(msft_data_with_crosses)
 
-    print(f"\nFinal Portfolio Value: {final_portfolio_value:.2f}")
+# The function calls are commented out to prevent execution in this environment. Please uncomment and execute in a suitable environment.
 
-# Assuming the above functions are correctly fetching and processing data
-# This block is to simulate trades based on golden and death crosses and print the results
-# trades, final_portfolio_value = simulate_trades(msft_data)
-# print_trades_and_summary(trades, final_portfolio_value)
-
-# NOTE: The above function calls are commented out to prevent execution in an environment where dependencies might be missing. 
-# Please uncomment and run in a suitable environment.
+# NOTE: This is a draft version of the program. Further refinement and error handling may be necessary for a complete solution.
